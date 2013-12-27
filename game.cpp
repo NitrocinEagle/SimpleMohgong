@@ -1,5 +1,13 @@
 #include "game.h"
 #include <iostream>
+
+Unknown::Unknown(int _i, int _j, int _data)
+{
+    i = _i;
+    j = _j;
+    data = _data;
+}
+
 Game::Game()
 {
     numbActivedTiles = 0;
@@ -28,25 +36,90 @@ void Game::setBords()
         tileArray[0][j] = 0;                    //0********************0       для определения
     }                                           //0********************0        блокировки карты
     for (int i = 0; i < numbTilesH + 2; ++i)    //0********************0
-    {                                           //0********************0  Bords from zeros for a simplify definition
+       {                                        //0********************0  Bords from zeros for a simplify definition
         tileArray[i][numbTilesW + 1] = 0;       //0********************0   is card blocked or isn't
         tileArray[i][0] = 0;                    //0********************0
     }                                           //0********************0
-                                                //0000000000000000000000
+                                                   //0000000000000000000000
 }
 
 void Game::arrangementTiles()
 {
     qsrand (QDateTime::currentMSecsSinceEpoch());
 
-    for (int i = 1; i <= numbTilesH; i++) {
-        int rand = (qrand() % 3 + 1);
-        for (int j = 1; j <= numbTilesW/2; j++) {
-            int temp = (qrand() % numbTiles + rand) % numbTiles + 1;
-            tileArray[i][j] = temp;
-            tileArray[i][numbTilesW-j+1] = temp;
+    int new_numbTilesH = numbTilesH +2;
+    int new_numbTilesW = numbTilesW +2;
+
+    setHelpArray(new_numbTilesH, new_numbTilesW);
+
+    qsrand (QDateTime::currentMSecsSinceEpoch());
+    int summ = 0;
+    while (summ < (new_numbTilesH-2)*(new_numbTilesW-2))
+    {
+        for (int i = 1; i < new_numbTilesH - 1; i++)
+            for (int j = 1; j < new_numbTilesW - 1; j++)
+                if (isPosUnlock(i,j,A) && A[i][j] != 0)
+                {
+                    summ++;
+                    vector.push_back(new Unknown(i,j,100));
+                }
+
+        for (int k = 0; k < vector.size(); k++)
+        {
+            A[vector[k]->i][vector[k]->j] = 0;
         }
+        std::cout << "\n\n";
+        vector.push_back(new Unknown(0,0,0));
     }
+
+
+    QVector <Unknown*> mainVector;
+
+    for (int l = 0; l < 14; l++)
+    {
+        int c = 0;
+        int mas[new_numbTilesW];
+        do
+        {
+            mas[c] = vector[c]->data;
+            c++;
+        }
+        while (vector[c]->data != 0);
+
+
+        for (int i = 0; i < c/2; i++)
+        {
+            int temp = (qrand() % numbTiles + qrand() % qrand()%10 + 1) % numbTiles + 1;
+            mas[i] = temp;
+            mas[c-i-1] = temp;
+        }
+
+        for (int i = 0; i < rand()%c + 3; i++)
+        {
+            int randIndex1 = rand()%c;
+            int randIndex2 = rand()%c;
+            int t;
+            t = mas[randIndex1];
+            mas[randIndex1] = mas[randIndex2];
+            mas[randIndex2] = t;
+        }
+
+        for (int i = 0; i < c; i++)
+        {
+            vector[i]->data = mas[i];
+            mainVector.push_back(vector[i]);
+        }
+        for (int i = 0; i < c+1; i++)
+            vector.pop_front();
+    }
+
+    for (int i = 0; i < mainVector.size(); i++)
+      tileArray[mainVector[i]->i][mainVector[i]->j] = mainVector[i]->data;
+
+    for (int i = 0; i < mainVector.size(); i++)
+        delete mainVector[i];
+    for (int i = 0; i < vector.size(); i++)
+        delete vector[i];
 }
 
 
@@ -55,7 +128,7 @@ void Game::setImages()
     /*for (int i = 0; i < numbTiles; ++i)
     {
         image[i] = new QImage(":/Images/Tiles/" + QString(i ) +".jpeg");
-    }*/  It doesn't work :( I'll finish this piece of code
+    }*/
     image[0] = new QImage(":/Images/Tiles/1.jpeg");
     image[1] = new QImage(":/Images/Tiles/2.jpeg");
     image[2] = new QImage(":/Images/Tiles/3.jpeg");
@@ -77,6 +150,28 @@ void Game::setImages()
     image[18] = new QImage(":/Images/Tiles/19.jpeg");
     image[19] = new QImage(":/Images/Tiles/20.jpeg");
     activeCard = new QImage(":/Images/Tiles/activeTile.jpeg");
+}
+
+void Game::setHelpArray(int new_H, int new_W)
+{
+    A = new int*[new_H];
+    for (int i = 0; i < new_H; ++i)
+        A[i] = new int[new_W];
+    for (int j = 0; j < new_W; ++j)
+    {
+        A[new_H -1][j] = 0;
+        A[0][j] = 0;
+    }
+
+    for (int i = 0; i < new_H; ++i)
+    {
+        A[i][new_W -1] = 0;
+        A[i][0] = 0;
+    }
+
+    for (int i = 1; i < new_H - 1; i++)
+        for (int j = 1; j < new_W - 1; j++)
+            A[i][j] = 1;
 }
 
 void Game::setActiveCardToPassive()
@@ -104,6 +199,32 @@ bool Game::isCardUnlock()
 
 }
 
+void Game::printHelpArray(int new_H, int new_W)
+{
+    for (int i = 0; i < new_H; i++)
+    {
+        for (int j = 0; j < new_W; j++)
+            std::cout << A[i][j] << " ";
+        std::cout << "\n";
+    }
+}
+
+
+bool Game::isPosUnlock(int i, int j, int **A)
+{
+    int sum = 0;
+    if (A[i-1][j] == 0)
+        sum++;
+    if (A[i+1][j] == 0)
+        sum++;
+    if (A[i][j-1] == 0)
+        sum++;
+    if (A[i][j+1] == 0)
+        sum++;
+    if (sum > 1)
+        return true;
+    return false;
+}
 
 Game::~Game()
 {
